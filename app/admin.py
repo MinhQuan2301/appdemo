@@ -1,23 +1,44 @@
-from  app.models import Category,Product
+from app.models import Category, Product, UserRoleEnum
 from app import app,db
-from  flask_admin import Admin,BaseView,expose
+from flask_admin import Admin,BaseView,expose
 from flask_admin.contrib.sqla import  ModelView
+from flask_login import logout_user, current_user
+from flask import redirect
 
 
 admin = Admin(app=app, name="QUẢN TRỊ BÁN HÀNG", template_mode='bootstrap4')
-class MyProductView(ModelView):
+
+class AuthenticatedAdmin(ModelView):
+    def is_accessible(self):
+        return  current_user.is_authenticated and current_user.user_role == UserRoleEnum.ADMIN
+
+
+class AuthenticatedUser(BaseView):
+    def is_accessible(self):
+        return current_user.is_authenticated
+class MyProductView(AuthenticatedAdmin):
     column_list =['id','name','price','active']
     column_searchable_list = ['name']
     column_filters = ['price','name']
     can_export = True
     edit_modal = True
 
+    # def is_accessible(self):
+    #     return current_user.is_authenticated
 
-class MyCategory(ModelView):
+
+class LogoutView(BaseView):
+    @expose("/")
+    def index(self):
+        logout_user()
+        return redirect('/admin')
+
+
+class MyCategory(AuthenticatedAdmin):
     column_searchable_list = ['name']
     column_list = ['name','products']
 
-class MyStatsView(BaseView):
+class MyStatsView(AuthenticatedUser):
     @expose("/")
     def index(self):
         return  self.render('admin/stats.html')
@@ -25,3 +46,4 @@ class MyStatsView(BaseView):
 admin.add_view(MyCategory(Category,db.session))
 admin.add_view(MyProductView(Product,db.session))
 admin.add_view(MyStatsView(name='Thống kê báo cáo'))
+admin.add_view(LogoutView(name='Đăng xuất'))
